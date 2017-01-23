@@ -50,23 +50,28 @@ def ViewsToNumber(strvcount):
 
     return count
 
-#генерируем запрос на выдачу страницы
+#вот так мы бы могли искато на хабре все статьи про python
+#https://habrahabr.ru/search/?target_type=posts&q=python&order_by=date
 #values = {'q' : 'python',
 #    'target_type' : 'posts',
 #    'order_by' : 'date' }
 #url_withparams = urllib.parse.urlencode(values)
 #url_full = "https://habrahabr.ru/search/?" + url_withparams
-#сразу идем на хаб Хабра про Python
+
+#но вместо этого мы сразу пойдем на хаб Хабра про Python
 url_full = "https://habrahabr.ru/hub/python/all"
-try: response = urllib.request.urlopen(url_full)
+try:
+    response = urllib.request.urlopen(url_full)
 except urllib.error.URLError as e:
     print('Ошибка при открытии страницы: ', e.reason)
+html = response.read() #читаем веб-страницу
+soup = BeautifulSoup(html) #инициализируем умный парсер
 
-url_real = response.geturl() # вот так можно проверить "правильную" ссылку - в случае, если есть перенаправление
-html = response.read()
+# вот так можно проверить, по какой на самом деле ссылке мы открыли страницу -
+# бывают сайты с перенаправлением
+url_real = response.geturl()
 
 #учитываем, что результаты поиска выводятся постранично, поэтому сначала нужно выяснить номер последней страницы
-soup = BeautifulSoup(html)
 html_lastpage = soup.find('ul', attrs={'id':'nav-pages'}).find('a', attrs={'title':'Последняя страница'}).get('href')
 start = html_lastpage.find('page') + len('page')
 end = len(html_lastpage)
@@ -77,9 +82,10 @@ lastpage = int(html_lastpage[start:end-1])
 #и для них сразу получаем максимум информации, которая сейчас доступна: дата публикации, название, ссылка, хабы и пр.
 page = 0
 tutorials = []
-#tutorial: { date, title, url, {hubs}, views, favoritecount, commentscount, author, {tags} }
+#объект, в который собираем информацию о статье, назовем tutorial и он будет выглядеть вот так:
+# tutorial: { date, title, url, {hubs}, views, favoritecount, commentscount, author, {tags} }
 #while page < lastpage:
-while page < 1:
+while page < 5:
     page = page + 1
     url = 'https://habrahabr.ru/hub/python/page' + str(page) + '/'
     matches = BeautifulSoup(urllib.request.urlopen(url).read()).find_all('span', attrs={'class': 'flag_tutorial', 'title': 'Обучающий материал'})
@@ -96,11 +102,15 @@ while page < 1:
         articleurl = article.find('a', attrs={'class': 'post__title_link'}).get('href')
         tutorial.append(articleurl)
         #хабы, к которым относится статья
-        names = article.find_all('a', attrs={'class': 'hub'})
-        hubs = []
-        for name in names:
-            hubs.append(name.text)
+        hubsnames = article.find_all('a', attrs={'class': 'hub'})
+
+        hubs = list(z.text for z in hubsnames)
         tutorial.append(hubs)
+        #а можно было написать так:
+        #hubs = []
+        #for name in names:
+        #   hubs.append(name.text)
+
         #количество просмотров. выглядит как 1,4k, поэтому преобразуем в число нашей функцией ViewsToNumber()
         views = article.find('div', attrs={'class': 'views-count_post'}).text
         tutorial.append(ViewsToNumber(views))
@@ -118,14 +128,12 @@ while page < 1:
         author = article.find('a', attrs={'class': 'post-author__link'}).text.replace('\n','')
         author = author.replace(' ', '')
         tutorial.append(author)
-        # необходимо сходить по ссылке на страницу статьи и забрать теги
-        #time.sleep(random.randint(0, 2))
-        tags = []
+        # необходимо сходить по ссылке на страницу каждой статьи и забрать теги (они не выводятся в результатах поиска)
         try:
             tagsarr = BeautifulSoup(urllib.request.urlopen(articleurl).read()).find_all('a', attrs={'rel': 'tag'})
-            for tag in tagsarr:
-                tags.append(tag.text)
+            tags = list(z.text for z in tagsarr)
         except:
+            tags = []
             pass
         tutorial.append(tags)
         #сохраняем очередную запись о статье в массив статей
@@ -179,26 +187,23 @@ for tutorial in tutorials:
 def customsort(i):
     return i[1]
 
-dictstats = Counter(dates).items()
-stats = []
-for ds in dictstats:
-    stats.append(ds)
+dictstats = Counter(dates).items() #вот так можно подсчитать количество одинаковых элементов
+stats = list(z for z in dictstats)
 stats.sort()
 mostfavored.sort(key=lambda i: i[1], reverse= True)
 mostcommented.sort(key=customsort, reverse = True)
-statsauthors = Counter(authors).most_common()
+#специальная функция для подсчета одинаковых элементов. возвращает список из N элементов,
+#отсортированный по убыванию. ср. с Counter(dates).items() - просто подсчитывает, не сортируя
+statsauthors = Counter(authors).most_common(20)
 
 #строим визуализацию по распределению статей по годам
 plt.rc('font', family='Arial') #задаем шрифт явно, иначе кириллица не отображается
-
 figure = plt.figure(1)
 plt.title('Распределение статей по годам')
 
-x = []
-y = []
-for stat in stats:
-    x.append(int(stat[0]))
-    y.append(stat[1])
+x = list(int(z[0]) for z in stats)
+y = list(z[1] for z in stats)
+
 plt.xkcd()
 plt.plot(x, y)
 plt.interactive(False)
@@ -208,15 +213,8 @@ plt.show(block=True)
 #строим визуализацию по самым пишущим авторам
 figure = plt.figure(2)
 plt.title('Самые пишущие авторы')
-x = []
-y = []
-count = 0
-for stat in statsauthors:
-    count += 1
-    x.append(stat[0])
-    y.append(stat[1])
-    if count >= 20:
-        break
+x = list(z[0] for z in statsauthors)
+y = list(z[1] for z in statsauthors)
 
 grad = DataFrame({'publications' : y, 'author': x})
 pos = np.arange(len(y))
@@ -237,47 +235,23 @@ plt.xlim(0, 30)
 plt.show(block=True)
 
 #выводим топ-20 статей по добавлению в избранное
-id = 0
 print('\n***Топ-20 статей по добавлению в избранное***')
-for fav in mostfavored:
-    id+= 1
-    print(str(id) + '. ' + fav[0] + ' (' + str(fav[1]) + ')')
-    if id == 20:
-        break
+for i, fav in enumerate(mostfavored[:20]):
+    print("{0}. {1} ({2})".format(i, fav[0], fav[1]))
 
 #выводим топ-20 статей по добавлению в избранное
-id = 0
 print('\n***Топ-20 комментируемых статей***')
-for comm in mostcommented:
-    id+= 1
-    print(str(id) + '. ' + comm[0] + ' (' + str(comm[1]) + ')')
-    if id == 20:
-        break
+for i, comm in enumerate(mostcommented[:20]):
+    print("{0}. {1} ({2})".format(i, comm[0], comm[1]))
 
 #насколько совпадают самые добавляемые и самые комментируемые?
-id = 0
-favs = set()
-for fav in mostfavored:
-    id+= 1
-    favs.add(fav[0])
-    if id == 20:
-        break
-
-id = 0
-comms = set()
-for com in mostcommented:
-    id+= 1
-    comms.add(com[0])
-    if id == 20:
-        break
+favs = set([x[0] for x in mostfavored[:20]])
+comms = set([x[0] for x in mostcommented[:20]])
 
 result = set(favs) & set(comms)
 
-print('\n***Самые популрные статьи***')
-id = 0
-for res in result:
-    id+= 1
-    print (str(id) + '. ' + res)
-    id += 1
+print('\n***Самые популярные статьи***')
+for i, res in enumerate(result):
+	print("{0}. {1}".format(i, res))
 
 print("Мы сделали это!")
