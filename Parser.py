@@ -150,8 +150,8 @@ with open("output.csv", "w", encoding='cp1251', newline='') as f:
 
 #загружаем всю информацию о 222 статьях из CSV-файла
 tutorials = []
-with open('все туториалы по питону с 2009 года.csv') as csvfile:
-    readCSV = csv.reader(csvfile, delimiter=';')
+with open('все туториалы по питону с 2009 года.csv', encoding='cp1251') as csvfile:
+    readCSV = csv.reader(csvfile, 'customcsv')
     for row in readCSV:
         # tutorial: { date, title, url, {hubs}, views, favoritecount, commentscount, author, {tags} }
         tutorial = []
@@ -237,12 +237,12 @@ plt.show(block=True)
 #выводим топ-20 статей по добавлению в избранное
 print('\n***Топ-20 статей по добавлению в избранное***')
 for i, fav in enumerate(mostfavored[:20]):
-    print("{0}. {1} ({2})".format(i, fav[0], fav[1]))
+    print("{0}. {1} ({2})".format(i+1, fav[0], fav[1]))
 
 #выводим топ-20 статей по добавлению в избранное
 print('\n***Топ-20 комментируемых статей***')
 for i, comm in enumerate(mostcommented[:20]):
-    print("{0}. {1} ({2})".format(i, comm[0], comm[1]))
+    print("{0}. {1} ({2})".format(i+1, comm[0], comm[1]))
 
 #насколько совпадают самые добавляемые и самые комментируемые?
 favs = set([x[0] for x in mostfavored[:20]])
@@ -252,6 +252,6 @@ result = set(favs) & set(comms)
 
 print('\n***Самые популярные статьи***')
 for i, res in enumerate(result):
-	print("{0}. {1}".format(i, res))
+	print("{0}. {1}".format(i+1, res))
 
 print("Мы сделали это!")
