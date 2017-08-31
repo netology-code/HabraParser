@@ -77,7 +77,7 @@ soup = BeautifulSoup(html)  # инициализируем умный парсе
 url_real = response.geturl()
 
 # учитываем, что результаты поиска выводятся постранично, поэтому сначала нужно выяснить номер последней страницы
-html_lastpage = soup.find('ul', attrs={'id': 'nav-pages'}).find('a', attrs={'title': 'Последняя страница'}).get('href')
+html_lastpage = soup.find('ul', attrs={'id': 'nav-pagess'}).find('a', attrs={'title': 'Последняя страница'}).get('href')
 start = html_lastpage.find('page') + len('page')
 end = len(html_lastpage)
 lastpage = int(html_lastpage[start:end-1])
@@ -93,23 +93,23 @@ tutorials = []
 while page < 5:
     page = page + 1
     url = 'https://habrahabr.ru/hub/python/page' + str(page) + '/'
-    matches = BeautifulSoup(urllib.request.urlopen(url).read()).find_all('span', attrs={'class': 'flag_tutorial',
+    matches = BeautifulSoup(urllib.request.urlopen(url).read()).find_all('span', attrs={'class': 'post__type-label',
                                                                                         'title': 'Обучающий материал'})
     for match in matches:
         # запись с информацией про статью
         tutorial = []
         # ищем весь блок html про статью
-        article = match.find_parent('div', attrs={'class': 'post_teaser'})
+        article = match.find_parent('article', attrs={'class': 'post post_preview'})
         # дата публикации статьи. преобразуется в объект Date нашей функцией StrToDate()
-        datestr = article.find('span', attrs={'class': 'post__time_published'}).text.replace('\n', '')
+        datestr = article.find('span', attrs={'class': 'post__time'}).text.replace('\n', '')
         tutorial.append(StrToDate(datestr))
         # ссылка на страницу статьи
-        tutorial.append(article.find('a', attrs={'class': 'post__title_link'}).text)
+        articletitle = article.find('a', attrs={'class': 'post__title_link'}).text
+        tutorial.append(articletitle)
         articleurl = article.find('a', attrs={'class': 'post__title_link'}).get('href')
         tutorial.append(articleurl)
         # хабы, к которым относится статья
-        hubsnames = article.find_all('a', attrs={'class': 'hub'})
-
+        hubsnames = article.find_all('a', attrs={'class': 'hub-link'})
         hubs = list(z.text for z in hubsnames)
         tutorial.append(hubs)
         # а можно было написать так:
@@ -118,20 +118,20 @@ while page < 5:
         #   hubs.append(name.text)
 
         # количество просмотров. выглядит как 1,4k, поэтому преобразуем в число нашей функцией ViewsToNumber()
-        views = article.find('div', attrs={'class': 'views-count_post'}).text
+        views = article.find('span', attrs={'class': 'post-stats__views-count'}).text
         tutorial.append(ViewsToNumber(views))
         # количество добавлений статьи в избранное. может не быть значения, поэтому ловим ошибку
         try:
-            tutorial.append(int(article.find('span', attrs={'class': 'favorite-wjt__counter'}).text))
+            tutorial.append(int(article.find('span', attrs={'class': 'bookmark__counter js-favs_count'}).text))
         except:
             tutorial.append(int(0))
         # количество комментариев к статье. может не быть значения, поэтому ловим ошибку
         try:
-            tutorial.append(int(article.find('a', attrs={'class': 'post-comments__link'}).text))
+            tutorial.append(int(article.find('a', attrs={'class': 'post-stats__comments-link'}).text))
         except:
             tutorial.append(int(0))
         # автор статьи. убираем лишние переводы строк и пробелы
-        author = article.find('a', attrs={'class': 'post-author__link'}).text.replace('\n', '')
+        author = article.find('a', attrs={'class': 'post__user-info user-info'}).text.replace('\n', '')
         author = author.replace(' ', '')
         tutorial.append(author)
         # необходимо сходить по ссылке на страницу каждой статьи и забрать теги (они не выводятся в результатах поиска)
